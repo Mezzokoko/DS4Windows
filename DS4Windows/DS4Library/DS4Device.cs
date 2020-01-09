@@ -1071,6 +1071,10 @@ namespace DS4Windows
                     }
                     */
 
+                    //Analog Stick Dejitter
+                    DeJitterAnalogStick(ref cState.LX, ref cState.LY, pState.LX, pState.LY);
+                    DeJitterAnalogStick(ref cState.RX, ref cState.RY, pState.RX, pState.RY);
+
                     if (conType == ConnectionType.SONYWA)
                     {
                         bool controllerSynced = inputReport[31] == 0;
@@ -1193,6 +1197,31 @@ namespace DS4Windows
             }
 
             timeoutExecuted = true;
+        }
+
+        private double Lerp(double A, double B, double Alpha)
+        {
+            return A + ((B - A) * Alpha);
+        }
+
+        private void DeJitterAnalogStick(ref byte CurrentX, ref byte CurrentY, byte PreviousX, byte PreviousY, double InputDifferenceThreshold = 10, double BaseFilterWeightInner = 0.05, double BaseFilterWeightOuter = 1)
+        {
+            //Filter out jittery stick input from worn out controllers
+
+            //Only applied when the difference between current and previous stick positions is below the threshold,
+            //this allows quick and sudden stick flicks to still be immediately applied without extra delay.
+
+            int DiffX = CurrentX - PreviousX;
+            int DiffY = CurrentY - PreviousY;
+
+            double InputDifferenceLength = Math.Sqrt(DiffX * DiffX + DiffY * DiffY);
+
+            double FilterWeightWeight = Math.Min(1, InputDifferenceLength / InputDifferenceThreshold);
+
+            double FilterWeight = Lerp(BaseFilterWeightInner, BaseFilterWeightOuter, FilterWeightWeight);
+
+            CurrentX = (byte)Lerp(PreviousX, CurrentX, FilterWeight);
+            CurrentY = (byte)Lerp(PreviousY, CurrentY, FilterWeight);
         }
 
         public void FlushHID()
